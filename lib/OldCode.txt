@@ -1,0 +1,86 @@
+
+Oud design:
+
+/*@override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Excerpts'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => _showEditExcerptsDialog(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () => _showDeleteExcerptsDialog(context),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ValueListenableBuilder(
+              valueListenable: _excerptsBox.listenable(),
+              builder: (context, Box<Excerpt> box, _) {
+                final excerpts = box.values.toList();
+                return ListView.builder(
+                  itemCount: excerpts.length,
+                  itemBuilder: (context, index) {
+                    final excerpt = excerpts[index];
+                    return CheckboxListTile(
+                      title: Text(excerpt.title),
+                      subtitle: Text(excerpt.mallets.join(', ')),
+                      value: excerpt.selected,
+                      onChanged: (value) {
+                        setState(() {
+                          excerpt.selected = value ?? false;
+                          _excerptsBox.putAt(index, excerpt);
+                        });
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.only(top: 10),
+            child: Divider(
+              height: 1,
+              thickness: 2,
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              indent: 100,
+              endIndent: 100,
+            ),
+          ),
+          Container(
+            height: MediaQuery
+                .of(context)
+                .size
+                .height / 3,
+            child: ListView(
+              padding: const EdgeInsets.only(top: 20, bottom: 25, left: 25, right: 25),
+              children: _getSelectedMallets()
+                  .map((mallet) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                    mallet,
+                    style:
+                      TextStyle(
+                          fontSize: 18,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer
+                      )
+                ),
+    ))
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
+        onPressed: () => _showAddExcerptDialog(context),
+      ),
+    );
+  }*/
