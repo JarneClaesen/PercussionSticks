@@ -1,16 +1,3 @@
-# percussion_mallets
-
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+![Screenshot_20231102-163521_Percussion Sticks](https://github.com/JarneClaesen/PercussionSticks/assets/134977408/1163ab3b-d6d3-4618-999f-fb62964f8926)
+![Screenshot_20231102-163456_Percussion Sticks](https://github.com/JarneClaesen/PercussionSticks/assets/134977408/182c5e30-cc68-4e33-8046-0d46ddfc1df0)
+![Screenshot_20231102-163440_Percussion Sticks](https://github.com/JarneClaesen/PercussionSticks/assets/134977408/d5e56b9c-7b5b-470a-9bb9-f6fa4ef192d3)
