@@ -45,3 +45,20 @@ class ExcerptAdapter extends TypeAdapter<Excerpt> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+Excerpt _$ExcerptFromJson(Map<String, dynamic> json) => Excerpt(
+      title: json['title'] as String,
+      mallets:
+          (json['mallets'] as List<dynamic>).map((e) => e as String).toList(),
+      selected: json['selected'] as bool? ?? false,
+    );
+
+Map<String, dynamic> _$ExcerptToJson(Excerpt instance) => <String, dynamic>{
+      'title': instance.title,
+      'mallets': instance.mallets,
+      'selected': instance.selected,
+    };

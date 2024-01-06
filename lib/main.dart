@@ -4,7 +4,9 @@ import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:percussion_mallets/settings_page.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
+import 'dart:convert';
 
 import 'excerpt.dart';
 
@@ -50,7 +52,7 @@ class MyApp extends StatelessWidget {
               useMaterial3: true,
               colorScheme: lightColorScheme,
               scaffoldBackgroundColor: lightColorScheme.background,
-              fontFamily: GoogleFonts.poppins().fontFamily,
+              //fontFamily: GoogleFonts.poppins().fontFamily,
               appBarTheme: const AppBarTheme(
                 color: Colors.transparent,
                 surfaceTintColor: Colors.transparent,
@@ -60,7 +62,7 @@ class MyApp extends StatelessWidget {
               useMaterial3: true,
               colorScheme: darkColorScheme,
               scaffoldBackgroundColor: darkColorScheme.background,
-              fontFamily: GoogleFonts.poppins().fontFamily,
+              //fontFamily: GoogleFonts.poppins().fontFamily,
               appBarTheme: const AppBarTheme(
                 color: Colors.transparent,
                 surfaceTintColor: Colors.transparent,
@@ -111,6 +113,15 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
         appBar: AppBar(
           title: const Text('Excerpts'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SettingsPage()),
+                );
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () => _showEditExcerptsDialog(context),
@@ -258,10 +269,6 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
       }
     }
   }
-
-
-
-
 
   void _showAddExcerptDialog(BuildContext context) {
     final titleController = TextEditingController();
@@ -531,6 +538,7 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
       },
     );
   }
+
 
 
 }
