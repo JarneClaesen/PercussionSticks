@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -195,26 +197,25 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
                   valueListenable: _excerptsBox.listenable(),
                   builder: (context, Box<Excerpt> box, _) {
                     final excerpts = box.values.toList();
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: excerpts.length,
-                      itemBuilder: (context, index) {
-                        final excerpt = excerpts[index];
-                        return CheckboxListTile(
-                          title: Text(excerpt.title),
-                          subtitle: Text(excerpt.mallets.join(', ')),
-                          value: excerpt.selected,
-                          onChanged: (value) {
-                            setState(() {
-                              excerpt.selected = value ?? false;
-                              _excerptsBox.putAt(index, excerpt);
-                            });
-                          },
-                        );
-                      },
+                    return ReorderableListView(
+                      children: [
+                        for (final excerpt in excerpts)
+                          CheckboxListTile(
+                            key: Key(excerpt.key.toString()), // Unique key for each item
+                            title: Text(excerpt.title),
+                            subtitle: Text(excerpt.mallets.join(', ')),
+                            value: excerpt.selected,
+                            onChanged: (value) {
+                              setState(() {
+                                excerpt.selected = value ?? false;
+                                _excerptsBox.putAt(excerpts.indexOf(excerpt), excerpt);
+                              });
+                            },
+                          ),
+                      ],
+                      onReorder: _onReorder,
                       padding: EdgeInsets.only(bottom: MediaQuery.of(context).size.height / 5.1),
-                    )
-                    ;
+                    );
                   },
                 ),
               ),
@@ -241,6 +242,95 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
         )
     );
   }
+
+  void _onReorder(int oldIndex, int newIndex) {
+    setState(() {
+      final itemsBox = Hive.box<Excerpt>('excerpts');
+      final items = itemsBox.values.toList();
+
+      // Adjust newIndex to stay within the range
+      newIndex = newIndex > items.length - 1 ? items.length - 1 : newIndex;
+
+      final Excerpt movingItem = items.removeAt(oldIndex);
+      items.insert(newIndex, movingItem.copyWith());
+
+      // Update the Hive box for only the affected items
+      if (oldIndex < newIndex) {
+        for (int i = oldIndex; i <= newIndex; i++) {
+          itemsBox.putAt(i, items[i]);
+        }
+      } else {
+        for (int i = newIndex; i <= oldIndex; i++) {
+          itemsBox.putAt(i, items[i]);
+        }
+      }
+    });
+  }
+
+
+  /*
+  void _onReorder(int oldIndex, int newIndex) {
+    setState(() {
+      final itemsBox = Hive.box<Excerpt>('excerpts');
+      final items = itemsBox.values.toList();
+      final Excerpt movingItem = items.removeAt(oldIndex);
+
+      // Create a new instance for the moving item
+      final updatedMovingItem = Excerpt(
+        title: movingItem.title,
+        mallets: movingItem.mallets,
+        selected: movingItem.selected,
+      );
+
+      items.insert(newIndex, updatedMovingItem);
+
+      // Update the Hive box for only the affected items
+      if (oldIndex < newIndex) {
+        for (int i = oldIndex; i <= newIndex; i++) {
+          itemsBox.putAt(i, items[i]);
+        }
+      } else {
+        for (int i = newIndex; i <= oldIndex; i++) {
+          itemsBox.putAt(i, items[i]);
+        }
+      }
+    });
+  }
+   */
+
+
+  /*
+  void _onReorder(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) {
+      newIndex -= 1; // Compensate for the removal
+    }
+
+    setState(() {
+      final itemsBox = Hive.box<Excerpt>('excerpts');
+      final Excerpt oldItem = itemsBox.getAt(oldIndex)!;
+      final Excerpt newItem = itemsBox.getAt(newIndex)!;
+
+      // Create new instances with the same properties but swapped orders
+      final updatedOldItem = Excerpt(
+        title: oldItem.title,
+        mallets: oldItem.mallets,
+        selected: oldItem.selected,
+      );
+      final updatedNewItem = Excerpt(
+        title: newItem.title,
+        mallets: newItem.mallets,
+        selected: newItem.selected,
+      );
+
+      // Update the Hive box
+      itemsBox.putAt(oldIndex, updatedNewItem);
+      itemsBox.putAt(newIndex, updatedOldItem);
+    });
+  }
+   */
+
+
+
 
   void _updateFabVisibility({bool forceShow = false}) {
     final isListScrollable =

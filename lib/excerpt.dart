@@ -18,6 +18,18 @@ class Excerpt extends HiveObject {
 
   Excerpt({required this.title, required this.mallets, this.selected = false});
 
+  Excerpt copyWith({
+    String? title,
+    List<String>? mallets,
+    bool? selected,
+  }) {
+    return Excerpt(
+      title: title ?? this.title,
+      mallets: mallets ?? this.mallets,
+      selected: selected ?? this.selected,
+    );
+  }
+
   // JSON serialization
   factory Excerpt.fromJson(Map<String, dynamic> json) => _$ExcerptFromJson(json);
   Map<String, dynamic> toJson() => _$ExcerptToJson(this);
