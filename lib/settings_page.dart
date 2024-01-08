@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-import 'package:hive/hive.dart';
+import 'package:isar/isar.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -10,7 +10,9 @@ import 'dart:convert';
 import 'excerpt.dart';
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  final Isar isar;
+
+  const SettingsPage({Key? key, required this.isar}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -88,18 +90,19 @@ class SettingsPage extends StatelessWidget {
 
   // Export to JSON
   Future<String> exportToJson() async {
-    final box = Hive.box<Excerpt>('excerpts');
-    List<Map<String, dynamic>> jsonData = box.values.map((item) => item.toJson()).toList();
+    final excerpts = await isar.excerpts.where().findAll();
+    List<Map<String, dynamic>> jsonData = excerpts.map((item) => item.toJson()).toList();
     return jsonEncode(jsonData);
   }
 
 // Import from JSON
   Future<void> importFromJson(String jsonString) async {
-    final box = Hive.box<Excerpt>('excerpts');
     List<dynamic> jsonData = jsonDecode(jsonString);
     List<Excerpt> excerpts = jsonData.map((item) => Excerpt.fromJson(item)).toList();
-    for (var excerpt in excerpts) {
-      await box.add(excerpt);
-    }
+    await isar.writeTxn(() async {
+      for (var excerpt in excerpts) {
+        await isar.excerpts.put(excerpt);
+      }
+    });
   }
 }

@@ -5,28 +5,35 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:percussion_mallets/settings_page.dart';
+import 'package:percussion_mallets/widgets/PanelContent.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'dart:convert';
+import 'package:isar/isar.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'excerpt.dart';
+
+//todo: hide fab not working
 
 void main() async {
   // Initialize Hive
   WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
+  final dir = await getApplicationDocumentsDirectory();
+  final isar = await Isar.open(
+    [ExcerptSchema],
+    directory: dir.path,
+  );
 
-  // Register the adapter for the Excerpt class
-  Hive.registerAdapter(ExcerptAdapter());
-
-  // Open the box for storing the excerpts
-  await Hive.openBox<Excerpt>('excerpts');
-
-  runApp(MyApp());
+  runApp(MyApp(isar: isar));
 }
 
 Color brandColor = Colors.deepPurple;
 
 class MyApp extends StatelessWidget {
+  final Isar isar;
+
+  MyApp({required this.isar});
+
   @override
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
@@ -68,7 +75,7 @@ class MyApp extends StatelessWidget {
                 surfaceTintColor: Colors.transparent,
               ),
             ),
-            home: const ExcerptsPage(),
+            home: ExcerptsPage(isar: isar),
           );
         }
     );
@@ -76,17 +83,22 @@ class MyApp extends StatelessWidget {
 }
 
 class ExcerptsPage extends StatefulWidget {
-  const ExcerptsPage({super.key});
+  final Isar isar;
+
+  const ExcerptsPage({super.key, required this.isar});
 
   @override
-  _ExcerptsPageState createState() => _ExcerptsPageState();
+  _ExcerptsPageState createState() => _ExcerptsPageState(isar);
 }
 
+
 class _ExcerptsPageState extends State<ExcerptsPage> {
-  final Box<Excerpt> _excerptsBox = Hive.box<Excerpt>('excerpts');
+  final Isar isar;
+  _ExcerptsPageState(this.isar);
   List<Excerpt> _selectedExcerpts = [];
 
   final ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollControllerFab = ScrollController();
   bool _showFab = true;
 
   final PanelController _panelController = PanelController();
@@ -96,156 +108,168 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(() {
+    _scrollControllerFab.addListener(() {
       _updateFabVisibility();
     });
+    //_updateFabVisibility();
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _scrollControllerFab.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('Excerpts'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SettingsPage()),
-                );
-              },
+      appBar: AppBar(
+        title: const Text('Excerpts'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SettingsPage(isar: isar)),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => _showEditExcerptsDialog(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () => _showDeleteExcerptsDialog(context),
+          ),
+        ],
+      ),
+      body: SlidingUpPanel(
+        controller: _panelController,
+        color: Theme.of(context).colorScheme.surface,
+        onPanelSlide: (position) {
+          setState(() {
+            _fabPadding = position == 1.0 ? 0.0 : 80.0;
+          });
+        },
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(24.0),
+          topRight: Radius.circular(24.0),
+        ),
+        minHeight: 80,
+        maxHeight: MediaQuery.of(context).size.height / 1.3,
+        panel: Column(
+          children: [
+            SizedBox(height: 12), // Space for the handle
+            Container(
+              height: 5,
+              width: 60,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _showEditExcerptsDialog(context),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _showDeleteExcerptsDialog(context),
+            SizedBox(height: 12), // Additional space
+            Expanded(
+              child: FutureBuilder<List<String>>(
+                future: _getSelectedMallets(),
+                builder: (context, snapshot) {
+                  bool isPanelFullyOpen = _panelController.panelPosition == 1.0;
+
+                  if (snapshot.hasData) {
+                    return NotificationListener<UserScrollNotification>(
+                      onNotification: (notification) {
+                        if (notification.direction == ScrollDirection.forward &&
+                            _panelController.panelPosition == 1.0 &&
+                            _scrollController.offset <= 0) {
+                          _panelController.close();
+                        }
+                        return true;
+                      },
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        physics: CustomScrollPhysics(isScrollable: isPanelFullyOpen),
+                        padding: const EdgeInsets.only(top: 20, bottom: 25, left: 25, right: 25),
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Text(
+                              snapshot.data![index],
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  } else {
+                    return Container(); // Return an empty container when data is not available
+                  }
+                },
+              ),
             ),
           ],
         ),
-        body: SlidingUpPanel(
-          color: Theme.of(context).colorScheme.surface,
-          controller: _panelController,
-          onPanelSlide: (position) {
-            setState(() {
-              _fabPadding = position == 1.0 ? 0.0 : 80.0;
-            });
+        body: FutureBuilder<List<Excerpt>>(
+          future: isar.excerpts.where().findAll(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              return ListView.builder(
+                itemCount: snapshot.data!.length,
+                itemBuilder: (context, index) {
+                  final excerpt = snapshot.data![index];
+                  return CheckboxListTile(
+                    title: Text(excerpt.title),
+                    subtitle: Text(excerpt.mallets.join(', ')),
+                    value: excerpt.selected,
+                    onChanged: (value) {
+                      setState(() {
+                        excerpt.selected = value ?? false;
+                        isar.writeTxn(() async {
+                          await isar.excerpts.put(excerpt);
+                        });
+                      });
+                    },
+                  );
+                },
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).size.height / 5.1),
+              );
+            } else {
+              return Container(); // Return an empty container when data is not available
+            }
           },
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24.0),
-            topRight: Radius.circular(24.0),
-          ),
-          minHeight: 80, // Adjust the minHeight to show the drag handle
-          maxHeight: MediaQuery.of(context).size.height / 1.3,
-          panel: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24.0),
-                topRight: Radius.circular(24.0),
-              ),
+        ),
+      ),
+      floatingActionButton: AnimatedOpacity(
+        opacity: _showFab ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 250),
+        child: IgnorePointer(
+          ignoring: !_showFab,
+          child: AnimatedPadding(
+            padding: EdgeInsets.only(bottom: _fabPadding),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: FloatingActionButton(
+              child: const Icon(Icons.add),
+              onPressed: () => _showAddExcerptDialog(context),
             ),
-            child: Column(
-              children: [
-                SizedBox(height: 12),
-                Container(
-                  height: 5,
-                  width: 60,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                SizedBox(height: 12),
-                Expanded(
-                  child: ListView(
-                    //controller: _scrollController,
-                    padding: const EdgeInsets.only(top: 20, bottom: 25, left: 25, right: 25),
-                    children: _getSelectedMallets()
-                        .map((mallet) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Text(
-                          mallet,
-                          style:
-                          TextStyle(
-                              fontSize: 18,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer
-                          )
-                      ),
-                    ))
-                        .toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          body: Column(
-            children: [
-              Expanded(
-                child: ValueListenableBuilder(
-                  valueListenable: _excerptsBox.listenable(),
-                  builder: (context, Box<Excerpt> box, _) {
-                    final excerpts = box.values.toList();
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: excerpts.length,
-                      itemBuilder: (context, index) {
-                        final excerpt = excerpts[index];
-                        return CheckboxListTile(
-                          title: Text(excerpt.title),
-                          subtitle: Text(excerpt.mallets.join(', ')),
-                          value: excerpt.selected,
-                          onChanged: (value) {
-                            setState(() {
-                              excerpt.selected = value ?? false;
-                              _excerptsBox.putAt(index, excerpt);
-                            });
-                          },
-                        );
-                      },
-                      padding: EdgeInsets.only(bottom: MediaQuery.of(context).size.height / 5.1),
-                    )
-                    ;
-                  },
-                ),
-              ),
-            ],
           ),
         ),
-        floatingActionButton: AnimatedOpacity(
-          opacity: _showFab ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 250),
-          child: IgnorePointer(
-            ignoring: !_showFab,
-            child: AnimatedPadding(
-              padding: EdgeInsets.only(bottom: _fabPadding),
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              child: FloatingActionButton(
-                child: const Icon(Icons.add),
-                onPressed: () => _showAddExcerptDialog(context),
-              ),
-            ),
-
-
-          ),
-        )
+      ),
     );
   }
 
+
+
   void _updateFabVisibility({bool forceShow = false}) {
     final isListScrollable =
-        _scrollController.position.maxScrollExtent -
-            _scrollController.position.minScrollExtent >
+        _scrollControllerFab.position.maxScrollExtent -
+            _scrollControllerFab.position.minScrollExtent >
             1.0;
 
     if (!isListScrollable || forceShow) {
@@ -255,14 +279,14 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
         });
       }
     } else {
-      if (_scrollController.position.userScrollDirection == ScrollDirection.reverse &&
-          _scrollController.position.atEdge == false) {
+      if (_scrollControllerFab.position.userScrollDirection == ScrollDirection.reverse &&
+          _scrollControllerFab.position.atEdge == false) {
         if (_showFab) {
           setState(() {
             _showFab = false;
           });
         }
-      } else if ((_scrollController.position.atEdge && _scrollController.position.pixels == 0) && !_showFab) {
+      } else if ((_scrollControllerFab.position.atEdge && _scrollControllerFab.position.pixels == 0) && !_showFab) {
         setState(() {
           _showFab = true;
         });
@@ -293,11 +317,14 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
             setState(() {});
           }
 
-          void addExcerpt() {
+          void addExcerpt() async {
             final title = titleController.text;
-            final excerpt = Excerpt(title: title, mallets: mallets);
-            _excerptsBox.add(excerpt);
-            _updateFabVisibility();
+            final excerpt = Excerpt()..title = title..mallets = mallets..selected = false;
+
+            await isar.writeTxn(() async {
+              await isar.excerpts.put(excerpt);
+            });
+
             Navigator.of(context).pop();
           }
 
@@ -360,13 +387,13 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
     );
   }
 
-  List<String> _getSelectedMallets() {
-    final selectedExcerpts = _excerptsBox.values.where((excerpt) =>
-    excerpt.selected).toList();
+
+  Future<List<String>> _getSelectedMallets() async {
+    final selectedExcerpts = await isar.excerpts.filter().selectedEqualTo(true).findAll();
     final selectedMallets = <String>{};
     for (final excerpt in selectedExcerpts) {
       for (final mallet in excerpt.mallets) {
-        if (mallet != '') {
+        if (mallet.isNotEmpty) {
           selectedMallets.add(mallet);
         }
       }
@@ -380,8 +407,7 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Delete Selected Excerpts'),
-          content: const Text(
-              'Are you sure you want to delete the selected excerpts?'),
+          content: const Text('Are you sure you want to delete the selected excerpts?'),
           actions: [
             TextButton(
               child: const Text('Cancel'),
@@ -389,28 +415,25 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
             ),
             TextButton(
               child: const Text('Delete'),
-              onPressed: () {
-                final selectedExcerpts = _excerptsBox.values.where((
-                    excerpt) => excerpt.selected).toList();
-                for (final excerpt in selectedExcerpts) {
-                  _excerptsBox.delete(excerpt.key);
-                }
-                _updateFabVisibility(forceShow: true);
+              onPressed: () async {
+                final selectedExcerpts = await isar.excerpts.filter().selectedEqualTo(true).findAll();
+                await isar.writeTxn(() async {
+                  for (final excerpt in selectedExcerpts) {
+                    await isar.excerpts.delete(excerpt.id);
+                  }
+                });
                 Navigator.of(context).pop();
               },
             ),
           ],
         );
       },
-    ).then((_) {
-      setState(() {
-        _selectedExcerpts = _getSelectedMallets().cast<Excerpt>();
-      });
-    });
+    ).then((_) => setState(() {}));
   }
 
-  void _showEditExcerptsDialog(BuildContext context) {
-    final selectedExcerpts = _excerptsBox.values.where((excerpt) => excerpt.selected).toList();
+
+  void _showEditExcerptsDialog(BuildContext context) async {
+    final selectedExcerpts = await isar.excerpts.filter().selectedEqualTo(true).findAll();
 
     if (selectedExcerpts.isEmpty) {
       showDialog(
@@ -473,10 +496,14 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
             setState(() {});
           }
 
-          void updateExcerpt() {
+          void updateExcerpt() async {
             final title = titleController.text;
-            final updatedExcerpt = Excerpt(title: title, mallets: mallets);
-            _excerptsBox.put(selectedExcerpt.key, updatedExcerpt);
+            final updatedExcerpt = selectedExcerpt..title = title..mallets = mallets;
+
+            await isar.writeTxn(() async {
+              await isar.excerpts.put(updatedExcerpt);
+            });
+
             Navigator.of(context).pop();
           }
 
@@ -542,6 +569,7 @@ class _ExcerptsPageState extends State<ExcerptsPage> {
 
 
 }
+
 
 
 

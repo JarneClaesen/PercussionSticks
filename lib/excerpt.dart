@@ -1,26 +1,34 @@
-import 'package:hive/hive.dart';
-import 'package:json_annotation/json_annotation.dart';
+import 'package:isar/isar.dart';
 
 part 'excerpt.g.dart';
 
+@Collection()
+class Excerpt {
+  Id id = Isar.autoIncrement;
 
-@HiveType(typeId: 0)
-@JsonSerializable()
-class Excerpt extends HiveObject {
-  @HiveField(0)
-  String title;
+  late String title;
+  late List<String> mallets;
+  late bool selected;
 
-  @HiveField(1)
-  List<String> mallets;
+  // Convert an Excerpt instance into a Map.
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id, // Include ID if you want to keep track of it
+      'title': title,
+      'mallets': mallets,
+      'selected': selected,
+    };
+  }
 
-  @HiveField(2)
-  bool selected;
-
-  Excerpt({required this.title, required this.mallets, this.selected = false});
-
-  // JSON serialization
-  factory Excerpt.fromJson(Map<String, dynamic> json) => _$ExcerptFromJson(json);
-  Map<String, dynamic> toJson() => _$ExcerptToJson(this);
+  // Create an Excerpt instance from a Map.
+  static Excerpt fromJson(Map<String, dynamic> json) {
+    Excerpt excerpt = Excerpt()
+      ..title = json['title']
+      ..mallets = List<String>.from(json['mallets'])
+      ..selected = json['selected'];
+    if (json.containsKey('id')) {
+      excerpt.id = json['id'];
+    }
+    return excerpt;
+  }
 }
-
-
